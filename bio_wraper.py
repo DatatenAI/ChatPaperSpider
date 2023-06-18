@@ -7,18 +7,18 @@ import string
 import gc
 import requests
 from bs4 import BeautifulSoup as bs
-
+from loguru import logger
 
 def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
                      end_date=datetime.date.today(),
                      subjects=[],
                      kwd=[],
                      kwd_type='all',
-                     athr=[],
+                     athr: list = [],
                      max_records=75,
                      max_time=300,
-                     cols=['abstract', 'title', 'authors', 'pub_time', 'year', 'url', 'pdf_url',
-                           'code', 'doi', 'related_doi', 'cited_by_url', 'paper_keywords']
+                     cols: list = ['abstract', 'title', 'authors', 'pub_time', 'year', 'url', 'pdf_url',
+                                   'code', 'doi', 'related_doi', 'cited_by_url', 'paper_keywords']
                      ):
     """
     Input:
@@ -66,8 +66,8 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
 
     if len(kwd) > 0:
         kwd_str = 'abstract_title%3A' + \
-            ('%252C%2B').join(
-                [kwd[0]] + [('%2B').join(keyword.split()) for keyword in kwd[1:]])
+                  ('%252C%2B').join(
+                      [kwd[0]] + [('%2B').join(keyword.split()) for keyword in kwd[1:]])
         kwd_str = kwd_str + '%20abstract_title_flags%3Amatch-' + kwd_type
         url += '%20' + kwd_str
 
@@ -76,8 +76,8 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
         url += '%20' + athr_str
     if len(athr) == 2:
         athr_str = 'author1%3A' + \
-            ('%2B').join(athr[0].split()) + \
-            '%20author2%3A' + ('%2B').join(athr[1].split())
+                   ('%2B').join(athr[0].split()) + \
+                   '%20author2%3A' + ('%2B').join(athr[1].split())
         url += '%20' + athr_str
 
     date_str = 'limit_from%3A' + start_date + '%20limit_to%3A' + end_date
@@ -85,8 +85,8 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
 
     num_page_results = 75
     url += '%20numresults%3A' + \
-        str(num_page_results) + '%20format_result%3Acondensed' + \
-        '%20sort%3Arelevance-rank'
+           str(num_page_results) + '%20format_result%3Acondensed' + \
+           '%20sort%3Arelevance-rank'
 
     titles = []
     author_lists = []
@@ -106,7 +106,7 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
             num_results_text = html.find(
                 'div', attrs={'class': 'highwire-search-summary'}).text.strip().split()[0]
             if num_results_text == 'No':
-                return()
+                return ()
 
             num_results = int(num_results_text)
             num_fetch_results = min(max_records, num_results)
@@ -118,7 +118,7 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
 
         articles = html.find_all(attrs={'class': 'search-result'})
         dois += [article.find_all('span', attrs={'class': 'highwire-cite-metadata-doi highwire-cite-metadata'})[
-            0].text.strip()[5:] for article in articles]
+                     0].text.strip()[5:] for article in articles]
         titles += [article.find('span', attrs={'class': 'highwire-cite-title'}).text.strip() if article.find(
             'span', attrs={'class': 'highwire-cite-title'}) is not None else None for article in articles]
         author_lists += [",".join([author.text for author in article.find_all(
@@ -131,15 +131,15 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
             'data-encoded-apath').strip().split(';')[-1].split('.')[0:3]) for article in articles]
         years += [tim[:4] for tim in dates]
         codes += ["" for tim in dates]
-        if time.time() - overall_time > max_time or (page+1)*num_page_results >= num_fetch_results:
+        if time.time() - overall_time > max_time or (page + 1) * num_page_results >= num_fetch_results:
             break
 
         page += 1
 
     records_data = list(zip(*list(map(lambda dummy_list: dummy_list[0:num_fetch_results], [
-                        titles, author_lists, urls, dates, years, pdf_urls, codes, dois, dois, urls]))))
+        titles, author_lists, urls, dates, years, pdf_urls, codes, dois, dois, urls]))))
     full_records_df = pd.DataFrame(records_data, columns=[
-                                   'title', 'authors', 'url', 'pub_time', 'year', 'pdf_url', 'code', 'doi', 'related_doi', 'cited_by_url'])
+        'title', 'authors', 'url', 'pub_time', 'year', 'pdf_url', 'code', 'doi', 'related_doi', 'cited_by_url'])
 
     absts = []
     keys = []
@@ -148,10 +148,22 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
         absts.append(bsoup.find('div', attrs={'class': 'section abstract'}).text.replace(
             'Abstract', '').replace('\n', ''))
         keys.append(bsoup.find('span', attrs={
-                    'class': "highwire-article-collection-term"}).text[:-1])
+            'class': "highwire-article-collection-term"}).text[:-1])
     full_records_df['abstract'] = absts
     full_records_df['paper_keywords'] = keys
 
     records_df = full_records_df[cols]
-
+    logger.info("end search bioxiv")
     return records_df.to_dict('records')
+
+
+if __name__ == "__main__":
+    data = biomedrxivsearch(
+        start_date=datetime.date(2023, 6, 16),
+        end_date=datetime.date.today(),
+        subjects=[],
+        kwd=['domain', 'Single-Cell'],
+        kwd_type='all',
+        athr=[],
+        max_records=50,
+        max_time=300)
