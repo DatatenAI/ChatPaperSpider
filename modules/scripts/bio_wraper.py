@@ -45,7 +45,7 @@ async def biomedrxivsearch(start_date=datetime.date.today().replace(day=2),
         max_records = 50,
         max_time = 300)
     """
-    logger.info("begin search bioxiv")
+    logger.info(f"begin search bioxiv:{kwd}")
 
     overall_time = time.time()
 
@@ -155,7 +155,7 @@ async def biomedrxivsearch(start_date=datetime.date.today().replace(day=2),
     full_records_df['paper_keywords'] = keys
 
     records_df = full_records_df[cols]
-    logger.info("end search bioxiv")
+    logger.info(f"end search bioxiv:{kwd}")
     return records_df.to_dict('records')
 
 

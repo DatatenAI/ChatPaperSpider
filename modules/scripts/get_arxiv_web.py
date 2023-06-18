@@ -2,10 +2,10 @@
 import requests
 from bs4 import BeautifulSoup
 import datetime
-
+from loguru import logger
 
 # 定义一个函数，根据关键词和页码生成arxiv搜索链接
-def get_url(keyword, page):
+async def get_url(keyword, page):
     base_url = "https://arxiv.org/search/?"
     params = {
         "query": keyword,
@@ -16,12 +16,12 @@ def get_url(keyword, page):
     }
     if page > 0:
         params["start"] = page * 50  # 设置起始位置
-
+    logger.info('get arxiv url')
     return base_url + requests.compat.urlencode(params)
 
 
 # 定义一个函数，根据链接获取网页内容，并解析出论文标题
-def get_titles(url, days, max_results=100):
+async def get_titles(url, days, max_results=100):
     """
         Input:
         - days: 从今天开始，往前推days天，作为搜索的时间范围
@@ -44,7 +44,7 @@ def get_titles(url, days, max_results=100):
     """
 
     paper_list = []
-    paper_dict = {}
+
     response = requests.get(url)
     soup = BeautifulSoup(response.text, "html.parser")
     articles = soup.find_all("li", class_="arxiv-result")  # 找到所有包含论文信息的li标签
@@ -52,6 +52,7 @@ def get_titles(url, days, max_results=100):
     last_days = datetime.timedelta(days=days)
 
     for article in articles:
+        paper_dict = {}
         title = article.find("p", class_="title").text  # 找到每篇论文的标题，并去掉多余的空格和换行符
         title = title.strip()
         link = article.find("span").find_all("a")[0].get('href')
@@ -67,7 +68,6 @@ def get_titles(url, days, max_results=100):
         paper_dict['submitted_date'] = date_obj
         paper_dict['year'] = date_obj.year
 
-        # subjects_element = soup.find("td", class_="tablecell subjects")
         subjects = article.find_all("span", class_="tag")
         subjects_list = []
         sub_list = []
@@ -80,7 +80,7 @@ def get_titles(url, days, max_results=100):
 
         paper_dict['pdf_url'] = link + '.pdf'
         doi_links = []
-        for link in soup.find_all('a', href=True):
+        for link in article.find_all('a', href=True):
             href = link['href']
             if href.startswith('https://doi.org/'):
                 doi_links.append(href)
@@ -94,24 +94,29 @@ def get_titles(url, days, max_results=100):
 
 
 # 定义一个函数，根据关键词获取所有可用的论文标题，并打印出来
-def get_all_titles(keyword, days=3, max_results=1000):
-    for page in range(1):
-        url = get_url(keyword, page)  # 根据关键词和页码生成链接
-        paper_list = get_titles(url, days=days, max_results=max_results)  # 根据链接获取论文标题
-
-        if not paper_list:  # 如果没有获取到任何标题，说明已经到达最后一页，退出循环
+async def get_all_titles(keyword, days=3, pages=3, max_results=1000):
+    logger.info(f"begin get all arxiv titles:{keyword}")
+    paper_list = []
+    for page in range(pages):
+        url = await get_url(keyword, page)  # 根据关键词和页码生成链接
+        temp_paper_list = await get_titles(url, days=days, max_results=max_results)  # 根据链接获取论文标题
+        if not temp_paper_list:  # 如果没有获取到任何标题，说明已经到达最后一页，退出循环
             break
+        paper_list.extend(temp_paper_list)  # 将获取到的标题添加到paper_list中
+    logger.info(f"end get all arxiv titles:{keyword}")
+    return paper_list
 
-        for paper_index, paper in enumerate(paper_list):  # 遍历每个标题，并打印出来
-            print('-' * 30)
-            print(page, paper_index, paper['title'])
-            for key, value in paper.items():
-                print(key, ":\n", value)
 
-def main():
+async def main():
     # 调用函数，输入你想要搜索的关键词（例如"artificial intelligence"）
-    get_all_titles("robot", days=3, max_results=10)
+    paper_list = await get_all_titles("robot", days=3, max_results=200)
+    for paper_index, paper in enumerate(paper_list):  # 遍历每个标题，并打印出来
+        print('-' * 30)
+        print(paper_index, paper['title'])
+        for key, value in paper.items():
+            print(key, ":\n", value)
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
