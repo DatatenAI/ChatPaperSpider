@@ -1,3 +1,4 @@
+import asyncio
 import math
 import pandas as pd
 import datetime
@@ -9,7 +10,7 @@ import requests
 from bs4 import BeautifulSoup as bs
 from loguru import logger
 
-def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
+async def biomedrxivsearch(start_date=datetime.date.today().replace(day=2),
                      end_date=datetime.date.today(),
                      subjects=[],
                      kwd=[],
@@ -44,6 +45,7 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
         max_records = 50,
         max_time = 300)
     """
+    logger.info("begin search bioxiv")
 
     overall_time = time.time()
 
@@ -157,13 +159,19 @@ def biomedrxivsearch(start_date=datetime.date.today().replace(day=1),
     return records_df.to_dict('records')
 
 
-if __name__ == "__main__":
-    data = biomedrxivsearch(
-        start_date=datetime.date(2023, 6, 16),
+async def test():
+    data = await biomedrxivsearch(
+        start_date=datetime.date(2023, 5, 14),
         end_date=datetime.date.today(),
         subjects=[],
-        kwd=['domain', 'Single-Cell'],
+        kwd=['domain', 'C.elegans'],
         kwd_type='all',
         athr=[],
         max_records=50,
         max_time=300)
+    print(data)
+
+
+if __name__ == "__main__":
+    asyncio.run(test())
+
