@@ -69,8 +69,10 @@ async def download_pdf_from_url(url, save_path):
                     logger.error(f"file save 失败: {e}")
 
                 logger.info("文件下载成功！")
+                return file_hash_hex
     except aiohttp.ClientError as e:
         logger.error(f"文件下载失败: {e}")
+        return False
 
 def compare_pdf_files(file1_path, file2_path):
     """

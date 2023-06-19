@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime, timedelta
 
 import dataclasses
@@ -21,6 +22,8 @@ class ScriptModel:
     code: str
     cited_by_url: str
 
+def get_uuid():
+    return str(uuid.uuid4())
 
 def split_list(lst:list, chunk_size:int):
     """

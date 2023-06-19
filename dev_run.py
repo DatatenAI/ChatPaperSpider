@@ -1,20 +1,28 @@
 import asyncio
 import datetime
+import hashlib
+import json
 from datetime import timedelta
+
+import fc2
+import httpx
 from loguru import logger
 import itertools
 from dotenv import load_dotenv
+import os
 
+import redis_manager
+from modules.database.mysql.db import SearchKeyPdf, SubscribePaperInfo, Tasks
 from modules.scripts.bio_wraper import biomedrxivsearch
 from modules.scripts.get_arxiv_web import get_all_titles
-from modules.utils import ScriptModel, split_list
+from modules.utils import ScriptModel, split_list, get_uuid
 
 load_dotenv()
 
 from modules.database.mysql import db
 
 previous_day = 5  # 每次爬取前的2天的
-
+is_dev = os.getenv("ENV") == 'DEV'
 
 async def search_keywords_data(keydata):
     """
@@ -125,26 +133,101 @@ async def get_paper_info():
     logger.info(f"end search paper, num {len(results)} new papers find")
 
     flat_results = list(itertools.chain(*results))
-    if not flat_results:     # 非空
+    if flat_results:     # 非空
         # 将数据存到数据库中，并添加到任务表中
         # 向search_keywords_pdf 中写入查询数据
+        for res in flat_results:
+            try:
+                # 数据要更新/追加的值
+                data = {
+                    'search_keywords': res.search_keywords,
+                    'search_from': res.search_from,
+                    'pdf_url': res.pdf_url
+                }
+
+                # 使用get_or_create()方法更新/追加数据
+                obj, created = SearchKeyPdf.get_or_create(search_keywords=data['search_keywords'], pdf_url=data['pdf_url'],
+                                                          defaults=data)
+
+                if created:
+                    logger.info(f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url} 数据已追加')
+
+                    # 向subscribe_paper_info表写入paper基础信息
+                    # 添加进任务表
+                    # 数据要更新/添加的值
+                    summary_id = hashlib.md5(res.pdf_url.encode('utf-8')).hexdigest()  # 将pdf url 转为 hash md5 16进制
+
+                    data_info = {
+                        'url': res.url,
+                        'pdf_url': res.pdf_url,
+                        'pdf_hash': summary_id,     # 之后需要更改
+                        'year': res.year,
+                        'title': res.title,
+                        'code': res.code,
+                        'doi': res.doi,
+                        'related_doi': res.related_doi,
+                        'cited_by_url': res.cited_by_url,
+                        'authors': res.authors,
+                        'abstract': res.abstract,
+                        'img_url': '',
+                        'pub_time': res.pub_time,
+                        'paper_keywords': res.paper_keywords,
+                        'create_time': datetime.datetime.now()
+                    }
+
+                    try:
+                        # 使用get_or_create()方法更新/添加数据
+                        try:
+                            obj, created = SubscribePaperInfo.get_or_create(pdf_url=data_info['pdf_url'], defaults=data_info)
+                        except Exception as e:
+                            logger.error(f"SubscribePaperInfo error: {e}")
+
+                        if created:
+                            logger.info(f'paper info: {res.pdf_url} 数据已添加')
+                        else:
+                            logger.info(f'paper info: {res.pdf_url} 数据已存在，进行更新')
+
+                        # 触发任务
+                        try:
+
+                            summary_key = f"subscribe_summary:{summary_id}"
+                            await redis_manager.set(summary_key, res.pdf_url)  # summary_id => user_id
+                            if is_dev is False:
+                                task_id = get_uuid()
+                                fc_client = fc2.Client(
+                                    endpoint=os.getenv("FUNCTION_ENDPOINT"),
+                                    accessKeyID=os.getenv("FUNCTION_ACCESS_KEY_ID"),
+                                    accessKeySecret=os.getenv("FUNCTION_ACCESS_KEY_SECRET")
+                                )
+                                task_res = fc_client.invoke_function(os.getenv("FUNCTION_SERVICE_NAME"),
+                                                                     os.getenv("FUNCTION_SUMMARY_TASK_NAME"),
+                                                                     qualifier='production',
+                                                                     payload=json.dumps({'summary_id': summary_id},
+                                                                                        ensure_ascii=False).encode(
+                                                                         'utf-8'),
+                                                                     headers={
+                                                                         'x-fc-invocation-type': 'Async',
+                                                                         'x-fc-stateful-async-invocation-id': task_id
+                                                                     })
+                                logger.info(
+                                    f"invoke subscribe summary task function,summary_id:{summary_id} id:{task_id},res {task_res.data}")
+                            else:
+                                response = httpx.get(os.getenv("FUNCTION_ENDPOINT"), params={'summary_id': summary_id})
+                                logger.info(f"invoke subscribe summary task dev ,summary_id:{summary_id},res {response.text}")
+                        except Exception as e:
+                            logger.error(f"{e}")
+
+                    except Exception as e:
+                        logger.error(f"paper {res.pdf_url} add paper info fail,{e}")
 
 
+                else:
+                    logger.info(f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url} 数据已存在，进行更新')
 
-        # 向subscribe_paper_info表写入paper基础信息
-
-
-
-        # 向subscribe_paper_summary_task表写入任务信息，并触发任务
-
-
-                
-        pass
+            except Exception as e:
+                logger.error(f"paper {res.pdf_url} add search fail,{e}")
 
     # 向数据库中写数据
-
-
-    pass
 
 
 if __name__ == "__main__":
