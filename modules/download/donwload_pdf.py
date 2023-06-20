@@ -27,13 +27,15 @@ async def calculate_pdf_hash(pdf_bytes):
     """
     读取pdf 为bytes 然后用fitz只读取内容
     :param pdf_bytes:
+    :param pages: PDF 的页数
     :return:
     """
     logger.info("begin cal pdf hash")
     file_hash = hashlib.md5()
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    for page_num in range(len(doc)):
+    pages = len(doc)
+    for page_num in range(pages):
         page = doc[page_num]
         text = page.get_text()
         file_hash.update(text.encode())
@@ -41,7 +43,7 @@ async def calculate_pdf_hash(pdf_bytes):
     # 提取哈希值的十六进制表示
     file_hash_hex = file_hash.hexdigest()
     logger.info(f"get pdf hash: {file_hash_hex}")
-    return file_hash_hex
+    return file_hash_hex, pages
 
 async def download_pdf_from_url(url, save_path):
     """
@@ -50,6 +52,7 @@ async def download_pdf_from_url(url, save_path):
     :param save_path:
     :return:
     """
+    logger.info(f"begin download pdf:{url}")
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
@@ -59,17 +62,17 @@ async def download_pdf_from_url(url, save_path):
                 pdf_bytes = await response.content.read()
 
                 # 计算PDF文件的哈希值
-                file_hash_hex = await calculate_pdf_hash(pdf_bytes)
+                file_hash_hex, pages = await calculate_pdf_hash(pdf_bytes)
                 logger.info(f"下载PDF文件成功，哈希值为: {file_hash_hex}")
 
                 # 保存文件
                 try:
                     await save_pdf(pdf_bytes, file_hash_hex, save_path)
+                    logger.info(f"end save pdf url :{url}, filename:{file_hash_hex}.pdf 文件下载成功！")
+                    return file_hash_hex, pages
                 except Exception as e:
                     logger.error(f"file save 失败: {e}")
-
-                logger.info("文件下载成功！")
-                return file_hash_hex
+                    return False
     except aiohttp.ClientError as e:
         logger.error(f"文件下载失败: {e}")
         return False

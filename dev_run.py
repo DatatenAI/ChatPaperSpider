@@ -3,7 +3,7 @@ import datetime
 import hashlib
 import json
 from datetime import timedelta
-
+from pydantic import BaseModel, Field, validator
 import fc2
 import httpx
 from loguru import logger
@@ -12,7 +12,8 @@ from dotenv import load_dotenv
 import os
 
 import redis_manager
-from modules.database.mysql.db import SearchKeyPdf, SubscribePaperInfo, Tasks
+from modules.database.mysql.db import SearchKeyPdf, SubscribePaperInfo, SubscribeTasks
+from modules.download.donwload_pdf import download_pdf_from_url
 from modules.scripts.bio_wraper import biomedrxivsearch
 from modules.scripts.get_arxiv_web import get_all_titles
 from modules.utils import ScriptModel, split_list, get_uuid
@@ -108,11 +109,145 @@ async def search_keywords_data(keydata):
                 logger.info(f'keywords:{search_keyword} has no new paper in bioxiv')
         except Exception as e:
             logger.error(f'search bioxiv error:{e}')
-
     return all_paper
 
 
+class RequestParams(BaseModel):
+    task_id: str = Field(..., description='任务表的task id')
+    user_type: str = Field(..., description="用户类型，可选值：user|spider")
 
+    @validator('task_id', 'user_type')
+    def validate_required_fields(cls, value):
+        if not value:
+            raise ValueError("该字段为必填字段")
+        return value
+
+async def insert_download_pdf(flat_list):
+    for res in flat_list:
+        try:
+            # 数据要更新/追加的值
+            data = {
+                'id': get_uuid(),
+                'search_keywords': res.search_keywords,
+                'search_from': res.search_from,
+                'pdf_url': res.pdf_url
+            }
+
+            # 使用get_or_create()方法更新/追加数据
+            obj, created_pdf = SearchKeyPdf.get_or_create(search_keywords=data['search_keywords'], pdf_url=data['pdf_url'],
+                                                      defaults=data)
+            if created_pdf:  # 如果是新创建的
+                res_down = await download_pdf_from_url(res.pdf_url, os.getenv('FILE_PATH'))
+                if res_down:     # 如果保存了pdf文件了
+                    file_hash, pages = res_down
+                    logger.info(f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url}, filename:{file_hash} 数据已追加 tabel <search_keywords_pdf>')
+                    # 向subscribe_paper_info表写入paper基础信息
+                    data_info = {
+                        'id': get_uuid(),
+                        'url': res.url,
+                        'pdf_url': res.pdf_url,
+                        'pdf_hash': file_hash,  # 之后需要更改
+                        'year': res.year,
+                        'title': res.title,
+                        'code': res.code,
+                        'doi': res.doi,
+                        'related_doi': res.related_doi,
+                        'cited_by_url': res.cited_by_url,
+                        'authors': res.authors,
+                        'abstract': res.abstract,
+                        'img_url': '',
+                        'pub_time': res.pub_time.strftime('%Y-%m-%d %H:%M:%S'),
+                        'paper_keywords': res.paper_keywords,
+                        'create_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
+
+                    try:
+                        obj, created_info = SubscribePaperInfo.get_or_create(pdf_url=data_info['pdf_url'],
+                                                                        defaults=data_info)
+                        if created_info:   # 新创建了paper信息
+                            logger.info(f'paper info: {res.pdf_url} 数据已添加')
+                            # 添加任务表并传参数
+                            task_id = get_uuid()
+                            data_tasks = {
+                                'id': task_id,
+                                'type': 'SUMMARY',
+                                'tokens': 0,
+                                'state': 'RUNNING',
+                                'pdf_hash': file_hash,
+                                'pages': pages,
+                                'language': '中文',
+                                'created_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            }
+                            try:
+                                obj, created_task = SubscribeTasks.get_or_create(pdf_hash=data_tasks['pdf_hash'],
+                                                                                 type=data_tasks['type'],
+                                                                                 language=data_tasks['language'],
+                                                                                 defaults=data_tasks)
+                                if created_task:    # 创建了任务
+                                    logger.info(f"create task {data_tasks['pdf_hash']}, type={data_tasks['type']}, "
+                                                f"language={data_tasks['language']}")
+                                    # TODO 传递 触发总结任务
+                                    # 触发任务
+                                    try:
+                                        # await redis_manager.set(summary_key, res.pdf_url)  # summary_id => user_id
+                                        data_params = RequestParams(
+                                            task_id=task_id,
+                                            user_type="spider",
+                                        )
+
+                                        if is_dev is False:
+                                            fc_client = fc2.Client(
+                                                endpoint=os.getenv("FUNCTION_ENDPOINT"),
+                                                accessKeyID=os.getenv("FUNCTION_ACCESS_KEY_ID"),
+                                                accessKeySecret=os.getenv("FUNCTION_ACCESS_KEY_SECRET")
+                                            )
+                                            task_res = fc_client.invoke_function(os.getenv("FUNCTION_SERVICE_NAME"),
+                                                                                 os.getenv("FUNCTION_SUMMARY_TASK_NAME"),
+                                                                                 qualifier='production',
+                                                                                 payload=data_params.dict().encode(
+                                                                                     'utf-8'),
+                                                                                 headers={
+                                                                                     'x-fc-invocation-type': 'Async',
+                                                                                     'x-fc-stateful-async-invocation-id': task_id
+                                                                                 })
+                                            logger.info(
+                                                f"invoke subscribe summary task function, id:{task_id},res {task_res.data}")
+                                        else:
+                                            response = httpx.get(os.getenv("FUNCTION_ENDPOINT"),
+                                                                 params=data_params.dict().encode(
+                                                                                     'utf-8'))
+                                            logger.info(
+                                                f"invoke subscribe summary task dev ,res {response.text}")
+                                    except Exception as e:
+                                        logger.error(f"{e}")
+
+                            except Exception as e:
+                                logger.error(f"paper tasks error: {e}")
+
+                        else:
+                            logger.info(f'paper info: {res.pdf_url} 数据已存在，进行更新')
+                    except Exception as e:
+                        logger.error(f"SubscribePaperInfo error: {e}")
+                else:
+                    logger.error(f"save file {res.pdf_url} fail")
+
+        except Exception as e:
+            logger.error(f"{e}")
+        #
+        #
+        #
+        #         except Exception as e:
+        #             logger.error(f"paper {res.pdf_url} add paper info fail,{e}")
+        #
+        #
+        #     else:
+        #         logger.info(
+        #             f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url} 数据已存在，进行更新')
+        #
+        # except Exception as e:
+        #     logger.error(f"paper {res.pdf_url} add sql search fail,{e}")
+
+# 向数据库中写数据
 
 
 async def get_paper_info():
@@ -131,107 +266,22 @@ async def get_paper_info():
     # 使用 asyncio.gather() 并行运行所有协程，并收集结果
     results = await asyncio.gather(*tasks)
 
-    logger.info(f"end search paper, num {len(results)} new papers find")
-
     flat_results = list(itertools.chain(*results))
-    if flat_results:     # 非空
-        # 将数据存到数据库中，并添加到任务表中
-        # 向search_keywords_pdf 中写入查询数据
-        for res in flat_results:
-            try:
-                # 数据要更新/追加的值
-                data = {
-                    'id': get_uuid(),
-                    'search_keywords': res.search_keywords,
-                    'search_from': res.search_from,
-                    'pdf_url': res.pdf_url
-                }
 
-                # 使用get_or_create()方法更新/追加数据
-                obj, created = SearchKeyPdf.get_or_create(search_keywords=data['search_keywords'], pdf_url=data['pdf_url'],
-                                                          defaults=data)
+    logger.info(f"end search paper, num {len(flat_results)} new papers find")
 
-                if created:
-                    logger.info(f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url} 数据已追加')
+    # 爬取PDF然后写入数据库
+    if flat_results:  # 非空
+        if len(flat_results) < 20:
+            num_chunks = len(flat_results)
+        else:
+            num_chunks = int(len(flat_results) / 20)
+        chunk_pdf_task = split_list(flat_results, num_chunks)
+        pdf_tasks = [insert_download_pdf(data) for data in chunk_pdf_task]
+        results = await asyncio.gather(*pdf_tasks)
 
-                    # 向subscribe_paper_info表写入paper基础信息
-                    # 添加进任务表
-                    # 数据要更新/添加的值
-                    summary_id = hashlib.md5(res.pdf_url.encode('utf-8')).hexdigest()  # 将pdf url 转为 hash md5 16进制
-
-                    data_info = {
-                        'id': get_uuid(),
-                        'url': res.url,
-                        'pdf_url': res.pdf_url,
-                        'pdf_hash': summary_id,     # 之后需要更改
-                        'year': res.year,
-                        'title': res.title,
-                        'code': res.code,
-                        'doi': res.doi,
-                        'related_doi': res.related_doi,
-                        'cited_by_url': res.cited_by_url,
-                        'authors': res.authors,
-                        'abstract': res.abstract,
-                        'img_url': '',
-                        'pub_time': res.pub_time.strftime('%Y-%m-%d %H:%M:%S'),
-                        'paper_keywords': res.paper_keywords,
-                        'create_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    }
-
-                    try:
-                        # 使用get_or_create()方法更新/添加数据
-                        try:
-                            obj, created = SubscribePaperInfo.get_or_create(pdf_url=data_info['pdf_url'], defaults=data_info)
-                        except Exception as e:
-                            logger.error(f"SubscribePaperInfo error: {e}")
-
-                        if created:
-                            logger.info(f'paper info: {res.pdf_url} 数据已添加')
-                        else:
-                            logger.info(f'paper info: {res.pdf_url} 数据已存在，进行更新')
-
-                        # 触发任务
-                        try:
-
-                            summary_key = f"subscribe_summary:{summary_id}"
-                            await redis_manager.set(summary_key, res.pdf_url)  # summary_id => user_id
-                            if is_dev is False:
-                                task_id = get_uuid()
-                                fc_client = fc2.Client(
-                                    endpoint=os.getenv("FUNCTION_ENDPOINT"),
-                                    accessKeyID=os.getenv("FUNCTION_ACCESS_KEY_ID"),
-                                    accessKeySecret=os.getenv("FUNCTION_ACCESS_KEY_SECRET")
-                                )
-                                task_res = fc_client.invoke_function(os.getenv("FUNCTION_SERVICE_NAME"),
-                                                                     os.getenv("FUNCTION_SUMMARY_TASK_NAME"),
-                                                                     qualifier='production',
-                                                                     payload=json.dumps({'summary_id': summary_id},
-                                                                                        ensure_ascii=False).encode(
-                                                                         'utf-8'),
-                                                                     headers={
-                                                                         'x-fc-invocation-type': 'Async',
-                                                                         'x-fc-stateful-async-invocation-id': task_id
-                                                                     })
-                                logger.info(
-                                    f"invoke subscribe summary task function,summary_id:{summary_id} id:{task_id},res {task_res.data}")
-                            else:
-                                response = httpx.get(os.getenv("FUNCTION_ENDPOINT"), params={'summary_id': summary_id})
-                                logger.info(f"invoke subscribe summary task dev ,summary_id:{summary_id},res {response.text}")
-                        except Exception as e:
-                            logger.error(f"{e}")
-
-                    except Exception as e:
-                        logger.error(f"paper {res.pdf_url} add paper info fail,{e}")
-
-
-                else:
-                    logger.info(f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url} 数据已存在，进行更新')
-
-            except Exception as e:
-                logger.error(f"paper {res.pdf_url} add sql search fail,{e}")
-
-    # 向数据库中写数据
-
+        logger.info(f"end insert pdf tasks")
+    logger.info("finish spider tasks")
 
 if __name__ == "__main__":
     asyncio.run(get_paper_info())

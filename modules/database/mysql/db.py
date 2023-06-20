@@ -79,28 +79,27 @@ class SubscribePaperInfo(BaseModelNew):
         table_name = 'subscribe_paper_info'
 
 # 任务表
-class Tasks(BaseModelNew):
-    id = AutoField()
-    user_id = CharField()
+class SubscribeTasks(BaseModelNew):
+    id = CharField(primary_key=True)
+    type = CharField(choices=('SUMMARY', 'TRANSLATE'))
+    tokens = IntegerField()
+    pages = IntegerField()
     pdf_hash = CharField()
     language = CharField()
-    type = CharField()
-    consume_points = IntegerField()
-    state = CharField(choices=('RUNNING', 'SUCCESS', 'FAIL'))
+    state = CharField(choices=('WAIT', 'RUNNING', 'SUCCESS', 'FAIL'))
     created_at = DateTimeField(default=datetime.datetime.now)
     finished_at = DateTimeField()
-
     class Meta:
-        table_name = 'tasks'
+        table_name = 'subscribe_tasks'
 
 # 总结表
 class Summaries(BaseModelNew):
+    id = CharField()
     basic_info = CharField()
     briefIntroduction = CharField()
     content = CharField()
     create_time = DateTimeField()
     first_page_conclusion = CharField()
-    id = AutoField()
     language = CharField()
     medium_content = CharField()
     pdf_hash = CharField()
@@ -127,20 +126,26 @@ def test():
 
     # test tasks
     # 创建任务对象
-    task = Tasks(
-        user_id='chat-paper',
-        pdf_hash='1234567890',
-        language='中文',
-        type='summary',
-        consume_points=0,
-        state='RUNNING',
-        finished_at=''
-    )
-
-    # 保存任务到数据库
-    task.save()
-    print(task.id)
-
+    data_tasks = {
+        'id': '1234',
+        'type': 'SUMMARY',
+        'tokens': 0,
+        'state': 'RUNNING',
+        'pdf_hash': '123445',
+        'pages': 10,
+        'language': '中文',
+        'created_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    }
+    try:
+        obj, created_task = SubscribeTasks.get_or_create(pdf_hash=data_tasks['pdf_hash'],
+                                                         type=data_tasks['type'],
+                                                         language=data_tasks['language'],
+                                                         defaults=data_tasks)
+        if created_task:  # 创建了任务
+            logger.info(f"create task {data_tasks['pdf_hash']}, type={data_tasks['type']}, "
+                        f"language={data_tasks['language']}")
+    except Exception as e:
+        logger.error(f"{e}")
 
 if __name__ == "__main__":
     test()
