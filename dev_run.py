@@ -33,6 +33,7 @@ async def search_keywords_data(keydata):
     current_date = datetime.datetime.now()
     # 减去 n 天
     current_date -= timedelta(days=previous_day)
+    current_date = current_date.strftime('%Y-%m-%d %H:%M:%S')
     # year, mon, day = current_date.year, current_date.month, current_date.day
 
     all_paper = []
@@ -140,6 +141,7 @@ async def get_paper_info():
             try:
                 # 数据要更新/追加的值
                 data = {
+                    'id': get_uuid(),
                     'search_keywords': res.search_keywords,
                     'search_from': res.search_from,
                     'pdf_url': res.pdf_url
@@ -158,6 +160,7 @@ async def get_paper_info():
                     summary_id = hashlib.md5(res.pdf_url.encode('utf-8')).hexdigest()  # 将pdf url 转为 hash md5 16进制
 
                     data_info = {
+                        'id': get_uuid(),
                         'url': res.url,
                         'pdf_url': res.pdf_url,
                         'pdf_hash': summary_id,     # 之后需要更改
@@ -170,9 +173,9 @@ async def get_paper_info():
                         'authors': res.authors,
                         'abstract': res.abstract,
                         'img_url': '',
-                        'pub_time': res.pub_time,
+                        'pub_time': res.pub_time.strftime('%Y-%m-%d %H:%M:%S'),
                         'paper_keywords': res.paper_keywords,
-                        'create_time': datetime.datetime.now()
+                        'create_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     }
 
                     try:
@@ -225,7 +228,7 @@ async def get_paper_info():
                     logger.info(f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url} 数据已存在，进行更新')
 
             except Exception as e:
-                logger.error(f"paper {res.pdf_url} add search fail,{e}")
+                logger.error(f"paper {res.pdf_url} add sql search fail,{e}")
 
     # 向数据库中写数据
 

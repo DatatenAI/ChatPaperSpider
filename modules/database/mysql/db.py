@@ -48,7 +48,7 @@ class SearchKeys(BaseModelNew):
 
 # 从关键词搜索pdf_url
 class SearchKeyPdf(BaseModelNew):
-    id = AutoField()
+    id = CharField()
     search_keywords = CharField()
     search_from = CharField()
     pdf_url = CharField()
@@ -58,7 +58,7 @@ class SearchKeyPdf(BaseModelNew):
 
 
 class SubscribePaperInfo(BaseModelNew):
-    id = AutoField()
+    id = CharField()
     url = CharField()
     pdf_url = CharField()
     pdf_hash = CharField()
@@ -71,7 +71,7 @@ class SubscribePaperInfo(BaseModelNew):
     authors = CharField()
     abstract = TextField()
     img_url = CharField()
-    pub_time = TimeField()
+    pub_time = DateTimeField()
     paper_keywords = CharField()
     create_time = DateTimeField(default=datetime.datetime.now)
 
@@ -88,7 +88,7 @@ class Tasks(BaseModelNew):
     consume_points = IntegerField()
     state = CharField(choices=('RUNNING', 'SUCCESS', 'FAIL'))
     created_at = DateTimeField(default=datetime.datetime.now)
-    finished_at = TimeField()
+    finished_at = DateTimeField()
 
     class Meta:
         table_name = 'tasks'
@@ -98,7 +98,7 @@ class Summaries(BaseModelNew):
     basic_info = CharField()
     briefIntroduction = CharField()
     content = CharField()
-    create_time = TimeField()
+    create_time = DateTimeField()
     first_page_conclusion = CharField()
     id = AutoField()
     language = CharField()
@@ -108,7 +108,7 @@ class Summaries(BaseModelNew):
     short_title = CharField()
     title = CharField()
     title_zh = CharField()
-    update_time = TimeField()
+    update_time = DateTimeField()
 
     class Meta:
         table_name = 'summaries'
