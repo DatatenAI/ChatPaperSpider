@@ -78,6 +78,63 @@ class SubscribePaperInfo(BaseModelNew):
     class Meta:
         table_name = 'subscribe_paper_info'
 
+class Paper(BaseModel):
+    id = IntegerField()
+    year = IntegerField()
+    pub_date = DateTimeField()
+    conference = CharField()
+    openreview_id = CharField()
+    keywords = TextField()
+    pdf_hash = CharField()
+    url_add_sclib = TextField()
+    bibtex = TextField()
+    pub_url = TextField()
+    url_scholarbib = TextField()
+    title = CharField()
+    tl_dr = TextField()
+    abstract = TextField()
+    venue = CharField()
+    authors = TextField()
+    code = TextField()
+    eprint_url = TextField()
+    num_citations = IntegerField()
+    summary = TextField()
+    cited_by_url = TextField()
+    openreview_link = TextField()
+    complete_summary = TextField()
+    url_related_articles = TextField()
+
+    class Meta:
+        table_name = 'Paper'
+
+class PaperInfo(BaseModelNew):
+    id = AutoField(primary_key=True)
+    url = CharField()
+    pdf_url = CharField()
+    pdf_hash = CharField()
+    year = IntegerField()
+    title = CharField()
+    venue = CharField()
+    conference = CharField()
+    url_add_scib = CharField()
+    bibtex = CharField()
+    url_scholarbib = CharField()
+    code = CharField()
+    eprint_url = CharField()
+    num_citations = IntegerField()
+    cited_by_url = CharField()
+    url_related_articles = CharField()
+    authors = CharField()
+    abstract = TextField()
+    img_url = CharField()
+    pub_time = DateTimeField()
+    keywords = CharField()
+    doi = CharField()
+    create_time = DateTimeField(default=datetime.datetime.now)
+
+    class Meta:
+        table_name = 'paper_info'
+
 # 任务表
 class SubscribeTasks(BaseModelNew):
     id = CharField(primary_key=True)
@@ -94,9 +151,9 @@ class SubscribeTasks(BaseModelNew):
 
 # 总结表
 class Summaries(BaseModelNew):
-    id = CharField()
+    id = AutoField(primary_key=True)
     basic_info = CharField()
-    briefIntroduction = CharField()
+    brief_introduction = CharField()
     content = CharField()
     create_time = DateTimeField()
     first_page_conclusion = CharField()
@@ -104,10 +161,9 @@ class Summaries(BaseModelNew):
     medium_content = CharField()
     pdf_hash = CharField()
     short_content = CharField()
-    short_title = CharField()
     title = CharField()
     title_zh = CharField()
-    update_time = DateTimeField()
+    # update_time = DateTimeField()
 
     class Meta:
         table_name = 'summaries'
