@@ -127,7 +127,6 @@ async def insert_download_pdf(flat_list):
         try:
             # 数据要更新/追加的值
             data = {
-                'id': get_uuid(),
                 'search_keywords': res.search_keywords,
                 'search_from': res.search_from,
                 'pdf_url': res.pdf_url
@@ -143,7 +142,6 @@ async def insert_download_pdf(flat_list):
                     logger.info(f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url}, filename:{file_hash} 数据已追加 tabel <search_keywords_pdf>')
                     # 向subscribe_paper_info表写入paper基础信息
                     data_info = {
-                        'id': get_uuid(),
                         'url': res.url,
                         'pdf_url': res.pdf_url,
                         'eprint_url': res.pdf_url,
@@ -168,9 +166,7 @@ async def insert_download_pdf(flat_list):
                         if created_info:   # 新创建了paper信息
                             logger.info(f'paper info: {res.pdf_url} 数据已添加')
                             # 添加任务表并传参数
-                            task_id = get_uuid()
                             data_tasks = {
-                                'id': task_id,
                                 'type': 'SUMMARY',
                                 'tokens': 0,
                                 'state': 'RUNNING',
@@ -180,7 +176,7 @@ async def insert_download_pdf(flat_list):
                                 'created_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                             }
                             try:
-                                obj, created_task = SubscribeTasks.get_or_create(pdf_hash=data_tasks['pdf_hash'],
+                                task_obj, created_task = SubscribeTasks.get_or_create(pdf_hash=data_tasks['pdf_hash'],
                                                                                  type=data_tasks['type'],
                                                                                  language=data_tasks['language'],
                                                                                  defaults=data_tasks)
@@ -192,7 +188,7 @@ async def insert_download_pdf(flat_list):
                                     try:
                                         # await redis_manager.set(summary_key, res.pdf_url)  # summary_id => user_id
                                         data_params = RequestParams(
-                                            task_id=task_id,
+                                            task_id=task_obj.id,
                                             user_type="spider",
                                         )
 
@@ -208,10 +204,10 @@ async def insert_download_pdf(flat_list):
                                                                                  payload=data_params.dict(),
                                                                                  headers={
                                                                                      'x-fc-invocation-type': 'Async',
-                                                                                     'x-fc-stateful-async-invocation-id': task_id
+                                                                                     'x-fc-stateful-async-invocation-id': task_obj.id
                                                                                  })
                                             logger.info(
-                                                f"invoke subscribe summary task function, id:{task_id},res {task_res.data}")
+                                                f"invoke subscribe summary task function, id:{task_obj.id},res {task_res.data}")
                                         else:
                                             response = httpx.get(os.getenv("FUNCTION_ENDPOINT"),
                                                                  params=data_params.dict())

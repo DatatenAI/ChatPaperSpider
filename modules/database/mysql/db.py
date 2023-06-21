@@ -148,7 +148,7 @@ def test():
                                                          language=data_tasks['language'],
                                                          defaults=data_tasks)
         if created_task:  # 创建了任务
-            logger.info(f"create task {data_tasks['pdf_hash']}, type={data_tasks['type']}, "
+            logger.info(f"task_id:{obj.id}, create task {data_tasks['pdf_hash']}, type={data_tasks['type']}, "
                         f"language={data_tasks['language']}")
     except Exception as e:
         logger.error(f"{e}")
