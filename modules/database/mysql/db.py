@@ -39,7 +39,7 @@ class ApiKey(BaseModel):
 
 # 简写的关键词搜索长关键词
 class SearchKeys(BaseModelNew):
-    id = AutoField()
+    id = AutoField(primary_key=True)
     keyword_short = CharField()
     search_keywords = CharField()
 
@@ -48,7 +48,7 @@ class SearchKeys(BaseModelNew):
 
 # 从关键词搜索pdf_url
 class SearchKeyPdf(BaseModelNew):
-    id = CharField()
+    id = AutoField(primary_key=True)
     search_keywords = CharField()
     search_from = CharField()
     pdf_url = CharField()
@@ -58,7 +58,7 @@ class SearchKeyPdf(BaseModelNew):
 
 
 class PaperInfo(BaseModelNew):
-    id = CharField()    # uuid
+    id = AutoField(primary_key=True)
     url = CharField()   # 文章网页连接
     pdf_url = CharField()   # pdf url
     eprint_url = CharField()   # 预印版pdf url
@@ -71,7 +71,6 @@ class PaperInfo(BaseModelNew):
     bibtex = TextField()
     url_scholarbib = CharField()
     code = CharField()
-    eprint_url = CharField()
     num_citations = IntegerField()
     cited_by_url = CharField()
     url_related_articles = CharField()  # 相关文章链接
@@ -88,7 +87,7 @@ class PaperInfo(BaseModelNew):
 
 # 任务表
 class SubscribeTasks(BaseModelNew):
-    id = CharField(primary_key=True)
+    id = AutoField(primary_key=True)
     type = CharField(choices=('SUMMARY', 'TRANSLATE'))
     tokens = IntegerField()
     pages = IntegerField()
@@ -102,7 +101,7 @@ class SubscribeTasks(BaseModelNew):
 
 # 总结表
 class Summaries(BaseModelNew):
-    id = CharField()
+    id = AutoField(primary_key=True)
     basic_info = CharField()
     briefIntroduction = CharField()
     content = CharField()
@@ -135,7 +134,6 @@ def test():
     # test tasks
     # 创建任务对象
     data_tasks = {
-        'id': '1234',
         'type': 'SUMMARY',
         'tokens': 0,
         'state': 'RUNNING',
