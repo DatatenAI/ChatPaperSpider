@@ -57,26 +57,34 @@ class SearchKeyPdf(BaseModelNew):
         table_name = 'search_keywords_pdf'
 
 
-class SubscribePaperInfo(BaseModelNew):
-    id = CharField()
-    url = CharField()
-    pdf_url = CharField()
-    pdf_hash = CharField()
-    year = IntegerField()
+class PaperInfo(BaseModelNew):
+    id = CharField()    # uuid
+    url = CharField()   # 文章网页连接
+    pdf_url = CharField()   # pdf url
+    eprint_url = CharField()   # 预印版pdf url
+    pdf_hash = CharField()  # pdf hash
+    year = IntegerField()   # 年份
     title = CharField()
+    venue = CharField()
+    conference = CharField()
+    url_add_scib = CharField()
+    bibtex = TextField()
+    url_scholarbib = CharField()
     code = CharField()
-    doi = CharField()
-    related_doi = CharField()
+    eprint_url = CharField()
+    num_citations = IntegerField()
     cited_by_url = CharField()
+    url_related_articles = CharField()  # 相关文章链接
     authors = CharField()
     abstract = TextField()
     img_url = CharField()
     pub_time = DateTimeField()
-    paper_keywords = CharField()
+    keywords = CharField()
     create_time = DateTimeField(default=datetime.datetime.now)
+    doi = CharField()
 
     class Meta:
-        table_name = 'subscribe_paper_info'
+        table_name = 'paper_info'
 
 # 任务表
 class SubscribeTasks(BaseModelNew):

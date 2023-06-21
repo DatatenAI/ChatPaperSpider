@@ -16,7 +16,6 @@ async def get_url(keyword, page):
     }
     if page > 0:
         params["start"] = page * 50  # 设置起始位置
-    logger.info('get arxiv url')
     return base_url + requests.compat.urlencode(params)
 
 

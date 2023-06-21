@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 import os
 
 import redis_manager
-from modules.database.mysql.db import SearchKeyPdf, SubscribePaperInfo, SubscribeTasks
+from modules.database.mysql.db import SearchKeyPdf, SubscribeTasks, PaperInfo
 from modules.download.donwload_pdf import download_pdf_from_url
 from modules.scripts.bio_wraper import biomedrxivsearch
 from modules.scripts.get_arxiv_web import get_all_titles
@@ -58,13 +58,13 @@ async def search_keywords_data(keydata):
                     data1 = ScriptModel(
                         keyword_short=keyword_short,
                         search_keywords=search_keyword,
-                        search_from='arxiv',
+                        search_from='bioxiv',
                         url=onedata['url'],
                         pdf_url=onedata['pdf_url'],
                         pdf_hash='',
                         title=onedata['title'],
                         abstract=onedata['abstract'],
-                        authors=onedata['authors'],
+                        authors=[name.strip() for name in onedata['authors'].split(',')],
                         pub_time=onedata['pub_time'],
                         year=onedata['year'],
                         doi=onedata['doi'],
@@ -89,20 +89,20 @@ async def search_keywords_data(keydata):
                     data1 = ScriptModel(
                         keyword_short=keyword_short,
                         search_keywords=search_keyword,
-                        search_from='bioxiv',
+                        search_from='arxiv',
                         url=onedata['url'],
                         pdf_url=onedata['pdf_url'],
                         pdf_hash='',
                         title=onedata['title'],
                         abstract=onedata['abstract'],
-                        authors=','.join(onedata['authors']),
+                        authors=onedata['authors'],
                         pub_time=onedata['submitted_date'],
                         year=onedata['year'],
                         doi=onedata['doi'],
                         related_doi='',
                         cited_by_url='',
                         code='',
-                        paper_keywords=','.join(onedata['subjects']))
+                        paper_keywords=onedata['subjects'])
                     all_paper.append(data1)
                     logger.info(f"add arxiv paper search:{search_keyword},url={onedata['url']}")
             else:
@@ -134,9 +134,9 @@ async def insert_download_pdf(flat_list):
             }
 
             # 使用get_or_create()方法更新/追加数据
-            obj, created_pdf = SearchKeyPdf.get_or_create(search_keywords=data['search_keywords'], pdf_url=data['pdf_url'],
+            obj, created_search_pdf = SearchKeyPdf.get_or_create(search_keywords=data['search_keywords'], pdf_url=data['pdf_url'],
                                                       defaults=data)
-            if created_pdf:  # 如果是新创建的
+            if created_search_pdf:  # 如果是新创建的
                 res_down = await download_pdf_from_url(res.pdf_url, os.getenv('FILE_PATH'))
                 if res_down:     # 如果保存了pdf文件了
                     file_hash, pages = res_down
@@ -146,23 +146,24 @@ async def insert_download_pdf(flat_list):
                         'id': get_uuid(),
                         'url': res.url,
                         'pdf_url': res.pdf_url,
+                        'eprint_url': res.pdf_url,
                         'pdf_hash': file_hash,  # 之后需要更改
                         'year': res.year,
                         'title': res.title,
                         'code': res.code,
                         'doi': res.doi,
-                        'related_doi': res.related_doi,
+                        'url_related_articles': res.related_doi,
                         'cited_by_url': res.cited_by_url,
-                        'authors': res.authors,
+                        'authors': str(res.authors),
                         'abstract': res.abstract,
                         'img_url': '',
                         'pub_time': res.pub_time.strftime('%Y-%m-%d %H:%M:%S'),
-                        'paper_keywords': res.paper_keywords,
+                        'keywords': str(res.paper_keywords),
                         'create_time': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     }
 
                     try:
-                        obj, created_info = SubscribePaperInfo.get_or_create(pdf_url=data_info['pdf_url'],
+                        obj, created_info = PaperInfo.get_or_create(pdf_url=data_info['pdf_url'],
                                                                         defaults=data_info)
                         if created_info:   # 新创建了paper信息
                             logger.info(f'paper info: {res.pdf_url} 数据已添加')
@@ -204,8 +205,7 @@ async def insert_download_pdf(flat_list):
                                             task_res = fc_client.invoke_function(os.getenv("FUNCTION_SERVICE_NAME"),
                                                                                  os.getenv("FUNCTION_SUMMARY_TASK_NAME"),
                                                                                  qualifier='production',
-                                                                                 payload=data_params.dict().encode(
-                                                                                     'utf-8'),
+                                                                                 payload=data_params.dict(),
                                                                                  headers={
                                                                                      'x-fc-invocation-type': 'Async',
                                                                                      'x-fc-stateful-async-invocation-id': task_id
@@ -214,8 +214,7 @@ async def insert_download_pdf(flat_list):
                                                 f"invoke subscribe summary task function, id:{task_id},res {task_res.data}")
                                         else:
                                             response = httpx.get(os.getenv("FUNCTION_ENDPOINT"),
-                                                                 params=data_params.dict().encode(
-                                                                                     'utf-8'))
+                                                                 params=data_params.dict())
                                             logger.info(
                                                 f"invoke subscribe summary task dev ,res {response.text}")
                                     except Exception as e:
@@ -227,12 +226,12 @@ async def insert_download_pdf(flat_list):
                         else:
                             logger.info(f'paper info: {res.pdf_url} 数据已存在，进行更新')
                     except Exception as e:
-                        logger.error(f"SubscribePaperInfo error: {e}")
+                        logger.error(f"PaperInfo error: {e}")
                 else:
                     logger.error(f"save file {res.pdf_url} fail")
 
         except Exception as e:
-            logger.error(f"{e}")
+            logger.error(f"error {e}")
         #
         #
         #

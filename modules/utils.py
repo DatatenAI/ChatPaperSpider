@@ -2,6 +2,8 @@ import uuid
 from datetime import datetime, timedelta
 
 import dataclasses
+from typing import List
+
 
 @dataclasses.dataclass
 class ScriptModel:
@@ -14,11 +16,11 @@ class ScriptModel:
     year: int   # 文章年份
     title: str  # 文章title
     abstract: str   # 摘要
-    authors: str    # 作者，用','分隔
+    authors: List[str]    # 作者，用','分隔
     doi: str    #
     pub_time: str
     related_doi: str
-    paper_keywords: str
+    paper_keywords: List[str]
     code: str
     cited_by_url: str
 
