@@ -23,6 +23,17 @@ async def save_pdf(file_content, file_hash, save_path):
             await f.write(file_content)
             logger.info(f"save pdf: {save_path}")
 
+async def read_pdf_bytes(file_path: str) -> bytes:
+    async with aiofiles.open(file_path, mode='rb') as file:
+        pdf_bytes = b''
+        chunk_size = 8192  # 每次读取的块大小
+        while True:
+            chunk = await file.read(chunk_size)
+            if not chunk:
+                break
+            pdf_bytes += chunk
+    return pdf_bytes
+
 async def calculate_pdf_hash(pdf_bytes):
     """
     读取pdf 为bytes 然后用fitz只读取内容
@@ -45,6 +56,8 @@ async def calculate_pdf_hash(pdf_bytes):
     logger.info(f"get pdf hash: {file_hash_hex}")
     return file_hash_hex, pages
 
+
+
 async def download_pdf_from_url(url, save_path):
     """
     异步从url下载pdf
@@ -55,14 +68,17 @@ async def download_pdf_from_url(url, save_path):
     logger.info(f"begin download pdf:{url}")
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
+            async with session.get(f"https://download-pdf-chatpaper-ozadbmfmas.cn-hongkong.fcapp.run/invoke?url={url}") as response:
                 response.raise_for_status()
 
-                # 读取PDF文件的二进制内容
+                file_hash_hex = response.headers.get("hash")
+                pages = response.headers.get("pages")
+
                 pdf_bytes = await response.content.read()
 
                 # 计算PDF文件的哈希值
-                file_hash_hex, pages = await calculate_pdf_hash(pdf_bytes)
+                # file_hash_hex, pages = await calculate_pdf_hash(pdf_bytes)
+
                 logger.info(f"下载PDF文件成功，哈希值为: {file_hash_hex}")
 
                 # 保存文件

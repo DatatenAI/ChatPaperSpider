@@ -22,8 +22,8 @@ def compare_files_chunkwise(file1_path, file2_path):
                 return True
 
 # 示例用法
-file1_path = '1f2d23fba80fe975f14a34acbef98c77.pdf'
-file2_path = '3d3366f1436213cd54869f761cf5c467.pdf'
+file1_path = '20ef69a4d17ef3aefe69344a910e8fd3-1.pdf'
+file2_path = '20ef69a4d17ef3aefe69344a910e8fd3-2.pdf'
 
 if compare_files_chunkwise(file1_path, file2_path):
     print("The files have identical content.")

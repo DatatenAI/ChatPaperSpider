@@ -265,6 +265,8 @@ async def get_paper_info():
 
     logger.info(f"end search paper, num {len(flat_results)} new papers find")
 
+    # 测试10篇文章
+    flat_results = flat_results[0:10]
     # 爬取PDF然后写入数据库
     if flat_results:  # 非空
         if len(flat_results) < 20:
