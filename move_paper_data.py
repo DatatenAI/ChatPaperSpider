@@ -10,6 +10,7 @@ logger.setLevel(logging.DEBUG)
 
 # 开发的时候取消注释
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from modules.database.mysql.db import Paper, PaperInfo, Summaries
@@ -46,10 +47,10 @@ def move_paper_data():
             if created_paper_info:
                 logger.info(f'move paper info, title: {paper.title}, pdf_hash: {paper.pdf_hash}')
         except Exception as e:
-                logger.error(f"{e}")
+            logger.error(f"{e}")
 
         summary_data = {
-            'content': paper,
+            'content': paper.summary,
             'create_time': datetime.datetime.now(),
             'pdf_hash': paper.pdf_hash,
             'title': paper.title,
@@ -59,7 +60,8 @@ def move_paper_data():
             if created_summary:
                 logger.info(f'move summary, title: {paper.title}, pdf_hash: {paper.pdf_hash}')
         except Exception as e:
-                logger.error(f"{e}")
+            logger.error(f"{e}")
+
 
 if __name__ == "__main__":
     move_paper_data()

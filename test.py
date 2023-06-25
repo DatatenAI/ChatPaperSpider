@@ -4,9 +4,20 @@ import httpx
 
 from dev_run import RequestParams
 
-data_params = RequestParams(task_id='052b2a36-c37d-4ffe-b272-755666cae760',
-                            user_type="spider"
+# test spider task
+# data_params = RequestParams(task_id='113',
+#                             user_type="spider"
+#                             )
+#
+# response = httpx.get(os.getenv("FUNCTION_ENDPOINT"),
+#                      params=data_params.dict())
+
+# test user task
+
+data_params = RequestParams(task_id='2',
+                            user_type="user"
                             )
 
 response = httpx.get(os.getenv("FUNCTION_ENDPOINT"),
                      params=data_params.dict())
+
