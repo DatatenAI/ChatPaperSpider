@@ -50,11 +50,13 @@ def move_paper_data():
             logger.error(f"{e}")
 
         summary_data = {
+            'language': "中文",
             'content': paper.summary,
             'create_time': datetime.datetime.now(),
             'pdf_hash': paper.pdf_hash,
             'title': paper.title,
         }
+
         try:
             _, created_summary = Summaries.get_or_create(**summary_data)
             if created_summary:
