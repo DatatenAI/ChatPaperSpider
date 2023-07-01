@@ -26,6 +26,8 @@ class BaseModelNew(Model):
     class Meta:
         database = mysql_db_new
 
+# ————————————————————old model————————————————————————
+
 
 class ApiKey(BaseModel):
     id = AutoField()
@@ -37,8 +39,41 @@ class ApiKey(BaseModel):
     class Meta:
         table_name = 'apikeys'
 
+
+
+class Paper(BaseModel):
+    id = IntegerField()
+    year = IntegerField()
+    pub_date = DateTimeField()
+    conference = CharField()
+    openreview_id = CharField()
+    keywords = TextField()
+    pdf_hash = CharField()
+    url_add_sclib = TextField()
+    bibtex = TextField()
+    pub_url = TextField()
+    url_scholarbib = TextField()
+    title = CharField()
+    tl_dr = TextField()
+    abstract = TextField()
+    venue = CharField()
+    authors = TextField()
+    code = TextField()
+    eprint_url = TextField()
+    num_citations = IntegerField()
+    summary = TextField()
+    cited_by_url = TextField()
+    openreview_link = TextField()
+    complete_summary = TextField()
+    url_related_articles = TextField()
+
+    class Meta:
+        table_name = 'Paper'
+
+
+# ————————————new model——————————————————————————————————
 # 简写的关键词搜索长关键词
-class SearchKeys(BaseModelNew):
+class KeywordsTable(BaseModelNew):
     id = AutoField(primary_key=True)
     keyword_short = CharField()
     search_keywords = CharField()
@@ -56,24 +91,23 @@ class SearchKeyPdf(BaseModelNew):
     class Meta:
         table_name = 'search_keywords_pdf'
 
-
+# 爬取的paper信息
 class PaperInfo(BaseModelNew):
     id = AutoField(primary_key=True)
-    url = CharField()   # 文章网页连接
-    pdf_url = CharField()   # pdf url
-    eprint_url = CharField()   # 预印版pdf url
-    pdf_hash = CharField()  # pdf hash
-    year = IntegerField()   # 年份
+    pdf_url = CharField()
+    pdf_hash = CharField()
+    year = IntegerField()
     title = CharField()
     venue = CharField()
     conference = CharField()
     url_add_scib = CharField()
-    bibtex = TextField()
+    bibtex = CharField()
     url_scholarbib = CharField()
     code = CharField()
+    eprint_url = CharField()
     num_citations = IntegerField()
     cited_by_url = CharField()
-    url_related_articles = CharField()  # 相关文章链接
+    url_related_articles = CharField()
     authors = CharField()
     abstract = TextField()
     img_url = CharField()
@@ -81,20 +115,20 @@ class PaperInfo(BaseModelNew):
     keywords = CharField()
     create_time = DateTimeField(default=datetime.datetime.now)
     doi = CharField()
-
+    url = CharField()
     class Meta:
         table_name = 'paper_info'
 
 # 任务表
 class SubscribeTasks(BaseModelNew):
-    id = AutoField(primary_key=True)
-    type = CharField(choices=('SUMMARY', 'TRANSLATE'))
-    tokens = IntegerField()
-    pages = IntegerField()
+    id = CharField(primary_key=True)
     pdf_hash = CharField()
     language = CharField()
+    type = CharField(choices=('SUMMARY', 'TRANSLATE'))
     state = CharField(choices=('WAIT', 'RUNNING', 'SUCCESS', 'FAIL'))
     created_at = DateTimeField(default=datetime.datetime.now)
+    tokens = IntegerField()
+    pages = IntegerField()
     finished_at = DateTimeField()
     class Meta:
         table_name = 'subscribe_tasks'
@@ -102,19 +136,18 @@ class SubscribeTasks(BaseModelNew):
 # 总结表
 class Summaries(BaseModelNew):
     id = AutoField(primary_key=True)
-    basic_info = CharField()
-    briefIntroduction = CharField()
-    content = CharField()
-    create_time = DateTimeField()
-    first_page_conclusion = CharField()
-    language = CharField()
-    medium_content = CharField()
     pdf_hash = CharField()
-    short_content = CharField()
-    short_title = CharField()
+    language = CharField()
     title = CharField()
     title_zh = CharField()
-    update_time = DateTimeField()
+    basic_info = CharField()
+    brief_introduction = CharField()
+    first_page_conclusion = CharField()
+    content = CharField()
+    medium_content = CharField()
+    short_content = CharField()
+    create_time = DateTimeField()
+    # update_time = DateTimeField()
 
     class Meta:
         table_name = 'summaries'
@@ -126,7 +159,7 @@ def test():
     # keys = [apikey.apikey for apikey in query_api_keys]
     # print(keys)
     #
-    # query_search_keywords = SearchKeys.select()
+    # query_search_keywords = KeywordsTable.select()
     # search_keywords = [keywords.search_keywords for keywords in query_search_keywords]
     # keyword_short = [keywords.keyword_short for keywords in query_search_keywords]
     # print(search_keywords)
@@ -137,7 +170,7 @@ def test():
         'type': 'SUMMARY',
         'tokens': 0,
         'state': 'RUNNING',
-        'pdf_hash': '123445',
+        'pdf_hash': '12345',
         'pages': 10,
         'language': '中文',
         'created_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -148,10 +181,12 @@ def test():
                                                          language=data_tasks['language'],
                                                          defaults=data_tasks)
         if created_task:  # 创建了任务
-            logger.info(f"task_id:{obj.id}, create task {data_tasks['pdf_hash']}, type={data_tasks['type']}, "
+            logger.info(f"id={obj.id}, create task {data_tasks['pdf_hash']}, type={data_tasks['type']}, "
                         f"language={data_tasks['language']}")
     except Exception as e:
         logger.error(f"{e}")
+
+
 
 if __name__ == "__main__":
     test()
