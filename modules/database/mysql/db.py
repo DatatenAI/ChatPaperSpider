@@ -41,34 +41,7 @@ class ApiKey(BaseModel):
 
 
 
-class Paper(BaseModel):
-    id = IntegerField()
-    year = IntegerField()
-    pub_date = DateTimeField()
-    conference = CharField()
-    openreview_id = CharField()
-    keywords = TextField()
-    pdf_hash = CharField()
-    url_add_sclib = TextField()
-    bibtex = TextField()
-    pub_url = TextField()
-    url_scholarbib = TextField()
-    title = CharField()
-    tl_dr = TextField()
-    abstract = TextField()
-    venue = CharField()
-    authors = TextField()
-    code = TextField()
-    eprint_url = TextField()
-    num_citations = IntegerField()
-    summary = TextField()
-    cited_by_url = TextField()
-    openreview_link = TextField()
-    complete_summary = TextField()
-    url_related_articles = TextField()
 
-    class Meta:
-        table_name = 'Paper'
 
 
 # ————————————new model——————————————————————————————————
@@ -96,6 +69,7 @@ class PaperInfo(BaseModelNew):
     id = AutoField(primary_key=True)
     pdf_url = CharField()
     pdf_hash = CharField()
+    search_From = CharField()
     year = IntegerField()
     title = CharField()
     venue = CharField()

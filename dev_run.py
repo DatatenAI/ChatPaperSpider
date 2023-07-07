@@ -63,7 +63,7 @@ async def search_keywords_data(keydata):
                     data1 = ScriptModel(
                         keyword_short=keyword_short,
                         search_keywords=search_keyword,
-                        search_from='bioxiv',
+                        search_from='Bioxiv',
                         url=onedata['url'],
                         pdf_url=onedata['pdf_url'],
                         pdf_hash='',
@@ -95,7 +95,7 @@ async def search_keywords_data(keydata):
                     data1 = ScriptModel(
                         keyword_short=keyword_short,
                         search_keywords=search_keyword,
-                        search_from='arxiv',
+                        search_from='Arxiv',
                         url=onedata['url'],
                         pdf_url=onedata['pdf_url'],
                         pdf_hash='',
@@ -146,15 +146,16 @@ async def insert_download_pdf(flat_list):
 
             try:
                 with db.mysql_db_new.atomic():
-                    res_down = await download_pdf_from_url(res.pdf_url, os.getenv('FILE_PATH'))
+                    res_down = await download_pdf_from_url(res.pdf_url, os.getenv('FILE_PATH'), os.environ.get('IMAGE_PATH'))
                     if res_down:  # 如果保存了pdf文件了
-                        file_hash, pages = res_down
+                        image_list, file_hash, pages = res_down
                         logger.info(
                             f'search_keywords:{res.search_keywords}, pdf_url: {res.pdf_url}, filename:{file_hash}')
                         data_info = {
                             'url': res.url,
                             'pdf_url': res.pdf_url,
                             'pdf_hash': file_hash,  # 之后需要更改
+                            'search_From': res.search_from,
                             'year': res.year,
                             'title': res.title,
                             'code': res.code,
@@ -163,7 +164,7 @@ async def insert_download_pdf(flat_list):
                             'cited_by_url': res.cited_by_url,
                             'authors': res.authors,
                             'abstract': res.abstract,
-                            'img_url': '',
+                            'img_url': json.dumps(image_list),
                             'eprint_url': res.pdf_url,
                             'pub_time': res.pub_time.strftime('%Y-%m-%d %H:%M:%S'),
                             'paper_keywords': res.paper_keywords,
@@ -290,7 +291,7 @@ async def get_paper_info():
 
 
     if is_dev:
-        flat_results = flat_results[0:10]
+        flat_results = flat_results[-20:-10]
     # 爬取PDF然后写入数据库
     if flat_results:  # 非空
         if len(flat_results) < 20:

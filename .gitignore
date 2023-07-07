@@ -18,6 +18,7 @@ res.json
 .vscode
 __pycache__
 uploads
+/download/images/
 out/*
 out
 log

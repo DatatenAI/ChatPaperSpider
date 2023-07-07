@@ -15,7 +15,7 @@ print(len(f"""Based on the current text content {1}, you should determine which 
 #                      params=data_params.dict())
 
 # test user task
-data_params = RequestParams(task_id=10,
+data_params = RequestParams(task_id='e89f0f1e-c6aa-43ca-9015-40fc47adb91a',
                             user_type="spider"
                             )
 

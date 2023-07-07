@@ -7,6 +7,8 @@ import os
 from loguru import logger
 import fitz
 
+from modules.download.extract_image import Extract_Images_From_PDF
+
 CHUNK_SIZE = 64 * 1024  # 64 KB
 
 async def save_pdf(file_content, file_hash, save_path):
@@ -58,7 +60,7 @@ async def calculate_pdf_hash(pdf_bytes):
 
 
 
-async def download_pdf_from_url(url, save_path):
+async def download_pdf_from_url(url:str, save_path: str, image_path:str):
     """
     异步从url下载pdf
     :param url:
@@ -75,6 +77,8 @@ async def download_pdf_from_url(url, save_path):
                 pages = response.headers.get("pages")
 
                 pdf_bytes = await response.content.read()
+                # 获得所有图片
+
 
                 # 计算PDF文件的哈希值
                 # file_hash_hex, pages = await calculate_pdf_hash(pdf_bytes)
@@ -85,7 +89,11 @@ async def download_pdf_from_url(url, save_path):
                 try:
                     await save_pdf(pdf_bytes, file_hash_hex, save_path)
                     logger.info(f"end save pdf url :{url}, filename:{file_hash_hex}.pdf 文件下载成功！")
-                    return file_hash_hex, pages
+                    # 提取image图片
+                    image_file_list = await Extract_Images_From_PDF(file_name=os.path.join(save_path, f"{file_hash_hex}.pdf"),
+                                                                    output_file=image_path)
+
+                    return image_file_list, file_hash_hex, pages
                 except Exception as e:
                     logger.error(f"file save 失败: {e}")
                     return False
