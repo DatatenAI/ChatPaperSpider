@@ -1,3 +1,9 @@
+"""
+Author: rongkangxiong
+Contact: earth@mail.ustc.edu.cn
+Copyright (c) Year 2023
+"""
+
 from pathlib import Path
 import aiofiles
 import aiohttp
@@ -60,7 +66,10 @@ async def calculate_pdf_hash(pdf_bytes):
 
 
 
-async def download_pdf_from_url(url:str, save_path: str, image_path:str):
+async def download_pdf_from_url(url:str, save_path: str, image_path:str,
+                                image_size: int = 30 * 1024,
+                                min_width: int = 128,
+                                min_height: int = 128):
     """
     异步从url下载pdf
     :param url:
@@ -91,7 +100,10 @@ async def download_pdf_from_url(url:str, save_path: str, image_path:str):
                     logger.info(f"end save pdf url :{url}, filename:{file_hash_hex}.pdf 文件下载成功！")
                     # 提取image图片
                     image_file_list = await Extract_Images_From_PDF(file_name=os.path.join(save_path, f"{file_hash_hex}.pdf"),
-                                                                    output_file=image_path)
+                                                                    output_file=image_path,
+                                                                    image_size=image_size,
+                                                                    min_width=min_width,
+                                                                    min_height=min_width)
 
                     return image_file_list, file_hash_hex, pages
                 except Exception as e:
@@ -126,5 +138,6 @@ if __name__ == "__main__":
     # 使用示例
     pdf_url = "http://www.biorxiv.org/content/10.1101/2022.07.22.501196v2.full.pdf"
     save_path = "../download"
-    asyncio.run(download_pdf_from_url(pdf_url, save_path))
+    image_path = "../images"
+    asyncio.run(download_pdf_from_url(pdf_url, save_path, image_path))
 

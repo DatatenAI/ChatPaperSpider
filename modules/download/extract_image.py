@@ -1,3 +1,8 @@
+"""
+Author: rongkangxiong
+Contact: earth@mail.ustc.edu.cn
+Copyright (c) Year 2023
+"""
 import asyncio
 import os
 from pathlib import Path
@@ -6,6 +11,8 @@ from typing import List
 import fitz  # pip install PyMuPDF
 from dotenv import load_dotenv
 from loguru import logger
+
+from modules.download import oss_helper
 
 
 # 使用fitz 库直接提取pdf的图像
@@ -52,21 +59,33 @@ async def Extract_Images_From_PDF(file_name: str,
                 if len(img['image']) > image_size and img['width'] > min_width and img['height'] > min_height:  # 只有大于30kb的才保存
                     image_filename = f"{imgcount}_{xref}.png"
                     logger.info(f"save image:{image_filename}")
-                    image_file_list.append(image_filename)
+
                     image_file_path = os.path.join(pic_path, image_filename)  # 合成最终图像完整路径名
+                    logger.info(f"local image path:{image_file_path}")
                     with open(image_file_path, 'wb') as imgout:
                         imgout.write(img["image"])
+                    # 上传 OSS
+                    await oss_helper.upload_to_oss(local_file_path=image_file_path,
+                                                   oss_folder='images',
+                                                   oss_file_path=os.path.join(pdf_hash, image_filename))
+
+                    image_file_list.append(image_filename)
         except Exception as e:
             logger.error(f"Extract_Images_From_PDF,pdf_hash:{pdf_hash}, page:{page},error:{repr(e)}")
             continue
-    return image_file_list
+    return image_file_list[0:10]    # 返回前10张
 
+async def test():
+    pdf_file = "/home/rongkang/WorkSpace/WebSite/ChatPaperDevelop/uploads/3add388a7aaa45ee574ec740ea1f1d10.pdf"
+    output_folder = '../../../images'
+    res = await Extract_Images_From_PDF(pdf_file, output_folder,
+                            min_width=128,
+                            min_height=128)
+
+    print(res)
 
 if __name__ == '__main__':
     # 调用示例
     # 调用示例
-    pdf_file = "/home/rongkang/WorkSpace/WebSite/ChatPaperDevelop/uploads/d97d2668bf6b22409e2f8a0c4b9f3290.pdf"
-    output_folder = './images'
-    asyncio.run(Extract_Images_From_PDF(pdf_file, output_folder,
-                                        min_width=128,
-                                        min_height=128))
+
+    asyncio.run(test())

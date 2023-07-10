@@ -1,3 +1,9 @@
+"""
+Author: rongkangxiong
+Contact: earth@mail.ustc.edu.cn
+Copyright (c) Year 2023
+"""
+
 import asyncio
 import datetime
 import hashlib
@@ -164,7 +170,7 @@ async def insert_download_pdf(flat_list):
                             'cited_by_url': res.cited_by_url,
                             'authors': res.authors,
                             'abstract': res.abstract,
-                            'img_url': json.dumps(image_list),
+                            'img_url': ", ".join(image_list),
                             'eprint_url': res.pdf_url,
                             'pub_time': res.pub_time.strftime('%Y-%m-%d %H:%M:%S'),
                             'paper_keywords': res.paper_keywords,
@@ -291,7 +297,7 @@ async def get_paper_info():
 
 
     if is_dev:
-        flat_results = flat_results[-20:-10]
+        flat_results = flat_results[-10:]
     # 爬取PDF然后写入数据库
     if flat_results:  # 非空
         if len(flat_results) < 20:

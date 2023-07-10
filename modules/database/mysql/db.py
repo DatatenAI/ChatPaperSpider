@@ -1,3 +1,9 @@
+"""
+Author: rongkangxiong
+Contact: earth@mail.ustc.edu.cn
+Copyright (c) Year 2023
+"""
+
 import os
 from peewee import *
 import datetime

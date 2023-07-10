@@ -18,7 +18,6 @@ res.json
 .vscode
 __pycache__
 uploads
-/download/images/
 out/*
 out
 log
@@ -34,3 +33,5 @@ output.json
 .venv
 .venv/*
 .env-de
+
+/modules/download/images/
