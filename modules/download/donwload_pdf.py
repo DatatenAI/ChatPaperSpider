@@ -79,7 +79,7 @@ async def download_pdf_from_url(url:str, save_path: str, image_path:str,
     logger.info(f"begin download pdf:{url}")
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"https://download-pdf-chatpaper-ozadbmfmas.cn-hongkong.fcapp.run/invoke?url={url}") as response:
+            async with session.get(os.environ.get("DOWNLOAD_URL")+f"{url}") as response:
                 response.raise_for_status()
 
                 file_hash_hex = response.headers.get("hash")
