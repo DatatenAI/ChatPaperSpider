@@ -10,6 +10,8 @@ import hashlib
 import json
 import traceback
 from datetime import timedelta
+import random
+
 from pydantic import BaseModel, Field, validator
 import fc2
 import httpx
@@ -23,7 +25,8 @@ from modules.scripts.bio_wraper import biomedrxivsearch
 from modules.scripts.get_arxiv_web import get_all_titles
 from modules.utils import ScriptModel, split_list, get_uuid
 
-load_dotenv()
+if os.environ.get('ENV') == 'DEV':
+    load_dotenv()
 
 from modules.database.mysql import db
 
@@ -280,6 +283,9 @@ async def get_paper_info():
     query_search_keywords = db.KeywordsTable.select()
     all_keywords = [[keywords.keyword_short, keywords.search_keywords] for keywords in query_search_keywords]
 
+    if len(all_keywords) == 0:
+        logger.error(f"no keywords in sql")
+        return None
     if len(all_keywords) < 20:
         num_chunks = len(all_keywords)
     else:
@@ -295,9 +301,8 @@ async def get_paper_info():
 
     logger.info(f"end search paper, num {len(flat_results)} new papers find")
 
-
     if is_dev:
-        flat_results = flat_results[-10:]
+        flat_results = random.sample(flat_results, 40)
     # 爬取PDF然后写入数据库
     if flat_results:  # 非空
         if len(flat_results) < 20:
